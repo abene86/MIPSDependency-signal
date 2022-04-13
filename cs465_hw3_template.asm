@@ -49,6 +49,12 @@
 	
 	.align 3
 	LINES: .word 0:10 # an array of 10 integers(words), each is initialized to be 0
+	.align 3
+	DOUBLEOFFSET: .word 0, 1, 2, 3
+    .align 3
+	SINGLEOFFSET: .word 0, 1
+	.align 3
+	LABELNUMBER: .word 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
 	
 		
 
@@ -144,8 +150,58 @@ main:
 	# TODO: add your code here to process the instruction sequence,
 	#       report control signals, and true data dependences
 	####################################################################
-	
-	
+	li $s2, 0    #initializes the index to 0
+	la $s1, LINES
+	Compare:
+		slt $t1, $s2, $s0   #checks the intial compare of 0 < N
+		beq $t1, $0, endLoop
+	While: 
+		li $s4, 0
+		sll $t4, $s2, 2          #index*4
+		add $t1, $t4, $s1		 #index+address
+		lw  $t2  0($t1)          #Lines[index]
+		addi $a0, $t2, 0
+		jal ret_Type
+		addi $s3, $v0, 0
+		bne $s3, $zero, I_Type
+		li $s5, 8
+		lw $s5, DOUBLEOFFSET($s5)
+		sll $s5, $s5, 9
+		or $s4, $s4, $s5
+		li $s5, 4
+		lw $s5, DOUBLEOFFSET($s5)
+		sll $s5, $s5, 7
+		or $s4, $s4, $s5
+		li $s5, 4
+		lw $s5, SINGLEOFFSET($s5)
+		or $s4, $s4, $s5
+		j printSignal
+		I_Type:
+
+		printSignal:
+			la $a0, NEWLINE
+			li $v0, 4
+			syscall  
+			la $a0, LABEL_I
+			li $v0, 4
+			syscall
+			la $t3, LABELNUMBER
+			add $t4, $t3, $t4
+			sw $a0, 0($t4)
+			li $v0, 1
+			syscall
+			la $a0, PROMPT_CONTROL	
+			li $v0, 4
+			syscall 
+			move    $a0, $s4                # put number into correct reg for syscall
+			li      $v0, 34                  # syscall number for "print hex"
+			syscall  
+			la $a0, NEWLINE
+			li $v0, 4
+			syscall  
+		addi $s2, $s2, 1
+		j Compare
+	endLoop:
 ###########################################
 #  exit 
 ###########################################
@@ -165,6 +221,10 @@ error_report:
 # atoi: 
 #############################################################
 atoi:
+	addi $sp, $sp, -12
+	sw $s1, 0($sp)
+	sw $s2, 4($sp)
+	sw $t4, 8($sp)
     li $t0, 0              # set the index to 0 for do while loop
 	li $t1, 0              # set sum to 0 for integer calcualtion
 	li $t2, 7		       # set value power of the highest order bit for 16^? calculation
@@ -195,14 +255,11 @@ atoi:
 	slt  $s6, $t0, $a1       # index < 9 jump while
 	bne  $s6, $0, do_while
 	move $v0,$t1
-	li $a0, 1
-	addi $sp, $sp -8
-	sw $v0, 4($sp)
-	sw $ra, 0($sp)
-	jal report
-	lw $v0,  4($sp)
-	lw  $ra, 0($sp)
-	add $sp, $sp, 8
+	
+	lw $s1, 0($sp)
+	lw $s2, 4($sp)
+	lw $t4, 8($sp)
+	addi $sp, $sp, 12
 	jr $ra
 	
 
@@ -210,6 +267,27 @@ atoi:
 #############################################################
 # Feel free to define additional helper functions
 #############################################################
+ret_Type:
+	addi $sp, $sp, -8
+	sw $t1, 0($sp)
+	sw $ra, 4($sp)
+	li $t1, 0x3F
+	sll $t1, $t1, 26
+	addi $t2, $a0, 0
+	and $t2, $t2, $t1
+	bne $t2, $zero, set
+	li $v0, 0
+	j endret
+	set:
+		li $v0, 1
+	endret:	
+		lw $t1, 0($sp)
+		lw  $ra, 4($sp)
+		add $sp, $sp, 8
+	jr $ra
+
+
+
 
 	
 #############################################################
