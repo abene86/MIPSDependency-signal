@@ -51,11 +51,17 @@
 	LINES: .word 0:10 # an array of 10 integers(words), each is initialized to be 0
 	.align 3
 	DOUBLEOFFSET: .word 0, 1, 2, 3
-    .align 3
+    	.align 3
 	SINGLEOFFSET: .word 0, 1
 	.align 3
 	LABELNUMBER: .word 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
 	
+	.align 3 
+	rdArr: .word 33:10 
+	.align 3 
+	rtArr: .word 33:10 
+	.align 3 
+	rsArr: .word 33:10 
 		
 
 #############################################################
@@ -152,6 +158,9 @@ main:
 	####################################################################
 	li $s2, 0    #initializes the index to 0
 	la $s1, LINES
+	la $s6, rdArr
+	la $s7, rtArr
+	la $t7, rsArr
 	Compare:
 		slt $t1, $s2, $s0   #checks the intial compare of 0 < N
 		beq $t1, $0, endLoop
@@ -199,6 +208,40 @@ main:
 			la $a0, NEWLINE
 			li $v0, 4
 			syscall  
+			
+			sll $t4, $s2, 2          	# index*4
+			add $s6 $t4, $s6		# index+address for rdArr
+			add $s7, $t4, $s7		# index+address for rtArr
+			add $t7, $t4, $t7		# index+address for rsArr
+			
+		R_decode:
+			lw  $t5  0($t1)          	# Lines[index]
+			srl $t3, $t5, 11
+			and $t3, $t3, 0x1F		# get 5-bit rd
+			sw $t3, 0($s6)			# save rd of the instruction into the rdArr
+			srl $t3, $t5, 16
+			and $t3, $t3, 0x1F		# get 5-bit rt
+			sw $t3, 0($s7)			# save rt of the instruction into the rtArr
+			srl $t3, $t5, 21
+			and $t3, $t3, 0x1F		# get 5-bit rs
+			sw $t3, 0($t7)			# save rs of the instruction into the rsArr
+			
+			beq $s2, $0, print_none
+			
+			j print_dependence
+			
+		print_none:
+			la $a0, PROMPT_DEP
+			li $v0, 4
+			syscall 
+			la $a0, PROMPT_NONE	
+			li $v0, 4
+			syscall 
+			la $a0, PROMPT_DIVIDER	
+			li $v0, 4
+			syscall 
+			
+			
 		addi $s2, $s2, 1
 		j Compare
 	endLoop:
