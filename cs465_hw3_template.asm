@@ -202,7 +202,7 @@ main:
 			la $a0, PROMPT_CONTROL	
 			li $v0, 4
 			syscall 
-			move    $a0, $s4                # put number into correct reg for syscall
+			move    $a0, $s4                 # put number into correct reg for syscall
 			li      $v0, 34                  # syscall number for "print hex"
 			syscall  
 			la $a0, NEWLINE
@@ -210,26 +210,48 @@ main:
 			syscall  
 			
 			sll $t4, $s2, 2          	# index*4
-			add $s6 $t4, $s6		# index+address for rdArr
-			add $s7, $t4, $s7		# index+address for rtArr
-			add $t7, $t4, $t7		# index+address for rsArr
+			add $t2 $t4, $s6		# index+address for rdArr
+			add $t3, $t4, $s7		# index+address for rtArr
+			add $t4, $t4, $t7		# index+address for rsArr
 			
 		R_decode:
 			lw  $t5  0($t1)          	# Lines[index]
-			srl $t3, $t5, 11
-			and $t3, $t3, 0x1F		# get 5-bit rd
-			sw $t3, 0($s6)			# save rd of the instruction into the rdArr
-			srl $t3, $t5, 16
-			and $t3, $t3, 0x1F		# get 5-bit rt
-			sw $t3, 0($s7)			# save rt of the instruction into the rtArr
-			srl $t3, $t5, 21
-			and $t3, $t3, 0x1F		# get 5-bit rs
-			sw $t3, 0($t7)			# save rs of the instruction into the rsArr
+			srl $t5, $t5, 11
+			and $t5, $t5, 0x1F		# get 5-bit rd
+			sw $t5, 0($t2)			# save rd of the instruction into the rdArr
+			
+			lw  $t5  0($t1)          	# Lines[index]
+			srl $t5, $t5, 16
+			and $t5, $t5, 0x1F		# get 5-bit rt
+			sw $t5, 0($t3)			# save rt of the instruction into the rtArr
+			
+			lw  $t5  0($t1)          	# Lines[index]
+			srl $t5, $t5, 21
+			and $t5, $t5, 0x1F		# get 5-bit rs
+			sw $t5, 0($t4)			# save rs of the instruction into the rsArr
 			
 			beq $s2, $0, print_none
+			bne $s2, $0, compare_arr
+			j cont
+		
+		compare_arr:
+			li $s3, 0 				# index = 0
+			slt $t6, $s3, $s2   			# checks the inner index < current index
+			beq $t6, $0, cont
+		check_dependence:	
+			sll $t4, $s3, 2
+			add $t4, $t4, $s6			# index+address for rdArr
+			lw $t4, 0($t4)				# rd for previous instruction
 			
-			j print_dependence
-			
+			while_arr:
+				addi $t5, $t5, 0 		# current rs
+				beq $t5, $t4,  print_dependence
+				lw $t5, 0($t3)			# current rt
+				beq $t5, $t4,  print_dependence
+				
+				addi $s3, $s3, 1
+				j compare_arr
+		
 		print_none:
 			la $a0, PROMPT_DEP
 			li $v0, 4
@@ -241,7 +263,7 @@ main:
 			li $v0, 4
 			syscall 
 			
-			
+	cont:
 		addi $s2, $s2, 1
 		j Compare
 	endLoop:
@@ -328,7 +350,6 @@ ret_Type:
 		lw  $ra, 4($sp)
 		add $sp, $sp, 8
 	jr $ra
-
 
 
 
