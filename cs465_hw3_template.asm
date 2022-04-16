@@ -53,7 +53,6 @@
 	DOUBLEOFFSET: .word 0, 1, 2, 3
     .align 3
 	SINGLEOFFSET: .word 0, 1
-	.align 3
 	LABELNUMBER: .word 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
 	
 		
@@ -153,13 +152,13 @@ main:
 	li $s2, 0    #initializes the index to 0
 	la $s1, LINES
 	Compare:
-		slt $t1, $s2, $s0   #checks the intial compare of 0 < N
+		slt $t1, $s2, $s0   # checks the intial compare of 0 < N
 		beq $t1, $0, endLoop
 	While: 
 		li $s4, 0
-		sll $t4, $s2, 2          #index*4
-		add $t1, $t4, $s1		 #index+address
-		lw  $t2  0($t1)          #Lines[index]
+		sll $t4, $s2, 2          # index*4
+		add $t1, $t4, $s1	 # index+address
+		lw  $t2  0($t1)          # Lines[index]
 		addi $a0, $t2, 0
 		jal ret_Type
 		addi $s3, $v0, 0
@@ -177,19 +176,72 @@ main:
 		or $s4, $s4, $s5
 		j printSignal
 		I_Type:
+			li $t6, 1
+			li $t5, 2
+			li $s5, 3
+			li $s6, 4
+			addi  $a0, $t2, 0 	#prepares the parameter to be ready for the fucntion call
+			jal retI_type		#call the function I type
+			addi $s3, $v0, 0	#makes a copy of the return
+			beq $s3, $t6, setSignal1
+			beq $s3, $t5, setSignal2
+			beq $s3, $s5, setSignal3
+			li $t6, 4						#sets the index for  getting the value
+			lw $t6, SINGLEOFFSET($t6)       
+			or $s4, $s4, $t6
+			sll $t6, $t6, 2
+			or $s4, $s4, $t6
+			sll $t6, $t6, 2
+			or $s4, $s4, $t6
+			li $t6, 4
+			lw $t6 DOUBLEOFFSET($t6)
+			sll $t6, $t6, 5
+			or $s4, $s4, $t6
+			j printSignal
+			setSignal1:
+				li $t6, 4
+				lw $t6, SINGLEOFFSET($t6)
+				or $s4, $s4, $t6
+				sll $t6, $t6, 2
+				or $s4, $s4, $t6
+				j printSignal
+			setSignal3:
+				li $t6, 4	# 0 1 2 3
+				lw $t6, DOUBLEOFFSET($t6)
+				sll $t6, $t6, 9
+				or $s4, $s4, $t6
+				li $t6, 12
+				lw $t6, DOUBLEOFFSET($t6)
+				sll $t6, $t6, 5
+				or $s4, $s4, $t6
+				sll $t6, $t6, 2
+				or $s4, $s4, $t6
+				li $t6, 4
+				lw $t6, SINGLEOFFSET($t6)
+				sll $t6, $t6, 1
+				or $s4, $s4, $t6
+				j printSignal
+			setSignal2:
+				li $t6, 12
+				lw $t6, DOUBLEOFFSET($t6)
+				sll $t6, $t6, 5
+				or $s4, $s4, $t6
+				sll $t6, $t6, 2
+				or $s4, $s4, $t6
+				li $t6, 4
+				lw $t6, SINGLEOFFSET($t6)
+				sll $t6, $t6, 3
+				or $s4, $s4, $t6
+				j printSignal
 
 		printSignal:
 			la $a0, NEWLINE
 			li $v0, 4
 			syscall  
-			la $a0, LABEL_I
-			li $v0, 4
-			syscall
-			la $t3, LABELNUMBER
-			add $t4, $t3, $t4
-			sw $a0, 0($t4)
-			li $v0, 1
-			syscall
+			la $a0, LABEL_I	#print I
+			jal print_string
+			addi $t4, $s2, 1
+			print_int($t4)
 			la $a0, PROMPT_CONTROL	
 			li $v0, 4
 			syscall 
@@ -285,6 +337,43 @@ ret_Type:
 		lw  $ra, 4($sp)
 		add $sp, $sp, 8
 	jr $ra
+
+retI_type:
+	addi $sp, $sp, -20
+	sw $t1, 0($sp)
+	sw $ra, 4($sp)
+	sw $s3, 8($sp)
+	sw $s4, 12($sp)
+	Sw $s5, 16($sp)
+	li $s3, 0x08
+	li $s4, 0x2b
+	li $s5, 0x04
+	li $s6,	0x23
+	addi $t1, $a0,  0	#make a copy of the first parameter
+	srl $t1, $t1, 26	#shift the 26 values to the right to get the optcode
+	beq $t1, $s3, set1
+	beq $t1, $s4, set2
+	beq $t1, $s5, set3
+	addi $v0, $zero, 4
+	j end
+	set1:
+		addi $v0, $0, 1
+		j end
+	set2:
+		addi $v0, $0, 2
+		j end
+	set3:
+		addi $v0, $0, 3
+		j end
+	end: lw $t1, 0($sp)
+	     lw $ra, 4($sp)
+		 lw $s3, 8($sp)
+		 lw $s4, 12($sp)
+		 lw $s5, 16($sp)
+	     add $sp, $sp, 20
+	jr $ra
+	
+
 
 
 
