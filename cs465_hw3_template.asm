@@ -158,17 +158,18 @@ main:
 	####################################################################
 	li $s2, 0    #initializes the index to 0
 	la $s1, LINES
-	la $s6, rdArr
-	la $s7, rtArr
-	la $t7, rsArr
+	
 	Compare:
-		slt $t1, $s2, $s0   #checks the intial compare of 0 < N
+		slt $t1, $s2, $s0   # checks the intial compare of 0 < N
 		beq $t1, $0, endLoop
 	While: 
 		li $s4, 0
-		sll $t4, $s2, 2          #index*4
-		add $t1, $t4, $s1		 #index+address
-		lw  $t2  0($t1)          #Lines[index]
+		sll $t4, $s2, 2          # index*4
+		
+		li $t1, 0
+		
+		add $t1, $t4, $s1	 # index+address
+		lw  $t2  0($t1)          # Lines[index]
 		addi $a0, $t2, 0
 		jal ret_Type
 		addi $s3, $v0, 0
@@ -186,83 +187,255 @@ main:
 		or $s4, $s4, $s5
 		j printSignal
 		I_Type:
-
+			li $t6, 1
+			li $t5, 2
+			li $s5, 3
+			li $s6, 4
+			addi  $a0, $t2, 0 	#prepares the parameter to be ready for the fucntion call
+			jal retI_type		#call the function I type
+			addi $s3, $v0, 0	#makes a copy of the return
+			beq $s3, $t6, setSignal1
+			beq $s3, $t5, setSignal2
+			beq $s3, $s5, setSignal3
+			li $t6, 4						#sets the index for  getting the value
+			lw $t6, SINGLEOFFSET($t6)       
+			or $s4, $s4, $t6
+			sll $t6, $t6, 2
+			or $s4, $s4, $t6
+			sll $t6, $t6, 2
+			or $s4, $s4, $t6
+			li $t6, 4
+			lw $t6 DOUBLEOFFSET($t6)
+			sll $t6, $t6, 5
+			or $s4, $s4, $t6
+			j printSignal
+			setSignal1:
+				li $t6, 4
+				lw $t6, SINGLEOFFSET($t6)
+				or $s4, $s4, $t6
+				sll $t6, $t6, 2
+				or $s4, $s4, $t6
+				j printSignal
+			setSignal3:
+				li $t6, 4	# 0 1 2 3
+				lw $t6, DOUBLEOFFSET($t6)
+				sll $t6, $t6, 9
+				or $s4, $s4, $t6
+				li $t6, 12
+				lw $t6, DOUBLEOFFSET($t6)
+				sll $t6, $t6, 5
+				or $s4, $s4, $t6
+				sll $t6, $t6, 2
+				or $s4, $s4, $t6
+				li $t6, 4
+				lw $t6, SINGLEOFFSET($t6)
+				sll $t6, $t6, 1
+				or $s4, $s4, $t6
+				j printSignal
+			setSignal2:
+				li $t6, 12
+				lw $t6, DOUBLEOFFSET($t6)
+				sll $t6, $t6, 5
+				or $s4, $s4, $t6
+				sll $t6, $t6, 2
+				or $s4, $s4, $t6
+				li $t6, 4
+				lw $t6, SINGLEOFFSET($t6)
+				sll $t6, $t6, 3
+				or $s4, $s4, $t6
+				j printSignal
+			
 		printSignal:
 			la $a0, NEWLINE
 			li $v0, 4
 			syscall  
-			la $a0, LABEL_I
-			li $v0, 4
-			syscall
-			la $t3, LABELNUMBER
-			add $t4, $t3, $t4
-			sw $a0, 0($t4)
-			li $v0, 1
-			syscall
+			la $a0, LABEL_I	#print I
+			jal print_string
+			addi $t4, $s2, 1
+			print_int($t4)
 			la $a0, PROMPT_CONTROL	
 			li $v0, 4
 			syscall 
-			move    $a0, $s4                 # put number into correct reg for syscall
+			move    $a0, $s4                # put number into correct reg for syscall
 			li      $v0, 34                  # syscall number for "print hex"
 			syscall  
 			la $a0, NEWLINE
 			li $v0, 4
 			syscall  
+	
+			la $s6, rdArr			# load base address for rdArr
+			la $s7, rtArr			# load base address for rtArr
+			la $t7, rsArr			# load base address for rsArr
+	
+			beq $s3, $zero, R_decode
+			bne $s3, $zero, I_decode
 			
+		I_decode:
+			li $t6, 0
+			li $t5, 0
 			sll $t4, $s2, 2          	# index*4
-			add $t2 $t4, $s6		# index+address for rdArr
-			add $t3, $t4, $s7		# index+address for rtArr
-			add $t4, $t4, $t7		# index+address for rsArr
 			
-		R_decode:
-			lw  $t5  0($t1)          	# Lines[index]
-			srl $t5, $t5, 11
-			and $t5, $t5, 0x1F		# get 5-bit rd
-			sw $t5, 0($t2)			# save rd of the instruction into the rdArr
+			srl $t2, $t2, 26
+			and $t2, $t2, 0x3F		# opcode of the instruction
+			li $t3, 0x04			# beq
+			beq $t3, $t2, i_beq
+			li $t3, 0x08			# addi
+			beq $t3, $t2, i_addi
+			li $t3, 0x23			# lw
+			beq $t3, $t2, i_lw
+			li $t3, 0x2b			# sw
+			beq $t3, $t2, i_sw
 			
-			lw  $t5  0($t1)          	# Lines[index]
-			srl $t5, $t5, 16
-			and $t5, $t5, 0x1F		# get 5-bit rt
-			sw $t5, 0($t3)			# save rt of the instruction into the rtArr
-			
-			lw  $t5  0($t1)          	# Lines[index]
+		i_beq:
+			add $t6, $t4, $t7	 	# index + address (rsArr)
+			lw $t5, 0($t1)          	# Lines[index]
 			srl $t5, $t5, 21
 			and $t5, $t5, 0x1F		# get 5-bit rs
-			sw $t5, 0($t4)			# save rs of the instruction into the rsArr
+			sw $t5, 0($t6)			# save rs of the instruction into the rsArr
 			
-			beq $s2, $0, print_none
-			bne $s2, $0, compare_arr
-			j cont
+			li $t6, 0
+			add $t6, $t4, $s7	 	# index + address (rtArr)
+			lw $t5, 0($t1)          	# Lines[index]
+			srl $t5, $t5, 16
+			and $t5, $t5, 0x1F		# get 5-bit rt
+			sw $t5, 0($t6)			# save rt of the instruction into the rtArr
+			j first_instruction
+			
+		i_addi:	
+			add $t6, $t4, $s6	 	# index + address (rdArr)
+			lw $t5, 0($t1)          	# Lines[index]
+			srl $t5, $t5, 16
+			and $t5, $t5, 0x1F		# get 5-bit rd
+			sw $t5, 0($t6)			# save rd of the instruction into the rdArr
+			
+			li $t6, 0
+			add $t6, $t4, $t7	 	# index + address (rsArr)
+			lw $t5, 0($t1)          	# Lines[index]
+			srl $t5, $t5, 21
+			and $t5, $t5, 0x1F		# get 5-bit rs
+			sw $t5, 0($t6)			# save rs of the instruction into the rsArr
+			j first_instruction
+			
+		i_lw:
+			add $t6, $t4, $s6	 	# index + address (rdArr)
+			lw $t5, 0($t1)          	# Lines[index]
+			srl $t5, $t5, 16
+			and $t5, $t5, 0x1F		# get 5-bit rd
+			sw $t5, 0($t6)			# save rd of the instruction into the rdArr
+			
+			li $t6, 0
+			add $t6, $t4, $t7	 	# index + address (rsArr)
+			lw $t5, 0($t1)          	# Lines[index]
+			srl $t5, $t5, 21
+			and $t5, $t5, 0x1F		# get 5-bit rs
+			sw $t5, 0($t6)			# save rs of the instruction into the rsArr
+			j first_instruction
+	
+		i_sw:
+			add $t6, $t4, $s7	 	# index + address (rtArr)
+			lw $t5, 0($t1)          	# Lines[index]
+			srl $t5, $t5, 16
+			and $t5, $t5, 0x1F		# get 5-bit rt
+			sw $t5, 0($t6)			# save rt of the instruction into the rtArr
+			
+			li $t6, 0
+			add $t6, $t4, $s6	 	# index + address (rdArr)
+			lw $t5, 0($t1)          	# Lines[index]
+			srl $t5, $t5, 16
+			and $t5, $t5, 0x1F		# get 5-bit rd
+			sw $t5, 0($t6)			# save rd of the instruction into the rdArr
+			j first_instruction
+	
+		R_decode:
+			li $t5, 0
+			li $t6, 0
+			sll $t4, $s2, 2          	# index*4
+			add $t1, $t4, $s1
+			
+			add $t6, $t4, $s6	 	# index + address (rdArr)
+			lw $t5, 0($t1)          	# Lines[index]
+			srl $t5, $t5, 11
+			and $t5, $t5, 0x1F		# get 5-bit rd
+			sw $t5, 0($t6)			# save rd of the instruction into the rdArr
+			
+			li $t6, 0
+			add $t6, $t4, $s7	 	# index + address (rtArr)
+			lw $t5, 0($t1)          	# Lines[index]
+			srl $t5, $t5, 16
+			and $t5, $t5, 0x1F		# get 5-bit rt
+			sw $t5, 0($t6)			# save rt of the instruction into the rtArr
+			
+			li $t6, 0
+			add $t6, $t4, $t7	 	# index + address (rsArr)
+			lw $t5, 0($t1)          	# Lines[index]
+			srl $t5, $t5, 21
+			and $t5, $t5, 0x1F		# get 5-bit rs
+			sw $t5, 0($t6)			# save rs of the instruction into the rsArr
+			
+			li $a0, 100
+			la $a0, PROMPT_DEP
+			li $v0, 4
+			syscall 
 		
+		first_instruction:
+			li $s3, 0 			# inner index = 0
+			beq $s2, $0, print_none		# first instruction, dependence: none
+			bne $s2, $0, compare_arr	# else, compare with previous instructions
+			
+			#li $s3, 0 			# inner index = 0
+			#j cont
+			
 		compare_arr:
-			li $s3, 0 				# index = 0
-			slt $t6, $s3, $s2   			# checks the inner index < current index
+			li $t6, 0	
+			slt $t6, $s3, $s2   		# checks the inner index < current index
 			beq $t6, $0, cont
+			
 		check_dependence:	
-			sll $t4, $s3, 2
-			add $t4, $t4, $s6			# index+address for rdArr
-			lw $t4, 0($t4)				# rd for previous instruction
+			li $t5, 0
+			li $t6, 0
+			sll $t4, $s3, 2			# index*4
+			add $t6, $t4, $s6		# index + address (rdArr)
+			lw $t5, 0($t6)			# rd of previous instruction	
 			
 			while_arr:
-				addi $t5, $t5, 0 		# current rs
-				beq $t5, $t4,  print_dependence
-				lw $t5, 0($t3)			# current rt
-				beq $t5, $t4,  print_dependence
+				li $t6, 0
+				sll $t4, $s2, 2			# index*4
+				add $t6, $t4, $t7	 	# index + address (rsArr)
+				lw $t3, 0($t6)			# current 5-bit rs
+				beq $t5, $t3, next		# current rs == previous rd
+				j cont_compare
+				
+			cont_compare:
+				li $t6, 0
+				add $t6, $t4, $s7	 	# index + address (rtArr)
+				lw $t3, 0($t6)			# current 5-bit rt
+				beq $t5, $t3, next		# current rs == previous rd
+				j print_none
+					
+			next:
+				li $t1, 0
+				addi $t1, $s3, 1		# inner index ++
+				li $t2, 0
+				addi $t2, $s2, 1		# outer index ++
+				move $a0, $t3			# argument 1 passed to print_dependence
+				move $a1, $t1 			# argument 2 passed to print_dependence
+				move $a2, $t2			# argument 3 passed to print_dependence
+				jal print_dependence		
+				la $a0, PROMPT_DIVIDER	
+				li $v0, 4
+				syscall 
 				
 				addi $s3, $s3, 1
 				j compare_arr
 		
 		print_none:
-			la $a0, PROMPT_DEP
-			li $v0, 4
-			syscall 
 			la $a0, PROMPT_NONE	
 			li $v0, 4
 			syscall 
 			la $a0, PROMPT_DIVIDER	
 			li $v0, 4
 			syscall 
-			
+			 
 	cont:
 		addi $s2, $s2, 1
 		j Compare
@@ -351,7 +524,40 @@ ret_Type:
 		add $sp, $sp, 8
 	jr $ra
 
-
+retI_type:
+	addi $sp, $sp, -20
+	sw $t1, 0($sp)
+	sw $ra, 4($sp)
+	sw $s3, 8($sp)
+	sw $s4, 12($sp)
+	Sw $s5, 16($sp)
+	li $s3, 0x08
+	li $s4, 0x2b
+	li $s5, 0x04
+	li $s6,	0x23
+	addi $t1, $a0,  0	#make a copy of the first parameter
+	srl $t1, $t1, 26	#shift the 26 values to the right to get the optcode
+	beq $t1, $s3, set1
+	beq $t1, $s4, set2
+	beq $t1, $s5, set3
+	addi $v0, $zero, 4
+	j end
+	set1:
+		addi $v0, $0, 1
+		j end
+	set2:
+		addi $v0, $0, 2
+		j end
+	set3:
+		addi $v0, $0, 3
+		j end
+	end: lw $t1, 0($sp)
+	     lw $ra, 4($sp)
+		 lw $s3, 8($sp)
+		 lw $s4, 12($sp)
+		 lw $s5, 16($sp)
+	     add $sp, $sp, 20
+	jr $ra
 
 	
 #############################################################
